@@ -8,7 +8,7 @@ import { redirect } from "next/navigation";
 export async function UpdateUserCurrency(currency: string) {
   const parsedBody = UpdateUserCurrencySchema.safeParse({ currency });
   if (!parsedBody.success) {
-    return parsedBody.error;
+    throw parsedBody.error;
   }
   const user = await currentUser();
   if (!user) {
@@ -23,5 +23,6 @@ export async function UpdateUserCurrency(currency: string) {
       currency,
     },
   });
+
   return userSettings;
 }
