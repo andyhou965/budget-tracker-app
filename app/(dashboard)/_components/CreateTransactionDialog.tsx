@@ -2,7 +2,9 @@
 
 import {
   Dialog,
+  DialogClose,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -13,7 +15,7 @@ import {
   CreateTransactionSchema,
   CreateTransactionSchemaType,
 } from "@/schema/transaction";
-import { ReactNode } from "react";
+import { ReactNode, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -23,10 +25,21 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import CategoryPicker from "./CategoryPicker";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
+import { CalendarIcon, Loader2 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
 
+// Define the Type
 interface Props {
   trigger: ReactNode;
   type: TransactionType;
@@ -40,6 +53,14 @@ const CreateTransactionDialog = ({ trigger, type }: Props) => {
       date: new Date(),
     },
   });
+
+  const handleCategoryChange = useCallback(
+    (value: string) => {
+      form.setValue("category", value);
+    },
+    [form]
+  );
+
   return (
     <Dialog>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
@@ -49,7 +70,7 @@ const CreateTransactionDialog = ({ trigger, type }: Props) => {
             Create a new{" "}
             <span
               className={cn(
-                "mt-1",
+                "m-1",
                 type === "income" ? "text-emerald-500" : "text-red-500"
               )}
             >
@@ -98,11 +119,55 @@ const CreateTransactionDialog = ({ trigger, type }: Props) => {
                   <FormItem>
                     <FormLabel>Category</FormLabel>
                     <FormControl>
-                      <CategoryPicker type={type} />
+                      <CategoryPicker
+                        type={type}
+                        onChange={handleCategoryChange}
+                      />
                     </FormControl>
                     <FormDescription>
                       Select a category for this transaction
                     </FormDescription>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Transaction date</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-[200px] pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormDescription>
+                      Select a date for this transaction
+                    </FormDescription>
+                    <FormMessage />
                   </FormItem>
                 )}
               />

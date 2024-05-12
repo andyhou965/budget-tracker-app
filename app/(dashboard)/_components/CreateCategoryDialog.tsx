@@ -32,17 +32,23 @@ import {
   CreateCategorySchemaType,
 } from "@/schema/categories";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CircleOff, PlusSquare } from "lucide-react";
-import { useState } from "react";
+import { CircleOff, Loader2, PlusSquare } from "lucide-react";
+import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { CreateCategory } from "../_actions/categories";
+import { Category } from "@prisma/client";
+import { toast } from "sonner";
+import { useTheme } from "next-themes";
 
 interface Props {
   type: TransactionType;
+  successCallback: (category: Category) => void;
 }
 
-const CreateCategoryDialog = ({ type }: Props) => {
+const CreateCategoryDialog = ({ type, successCallback }: Props) => {
   const [open, setOpen] = useState(false);
   const form = useForm<CreateCategorySchemaType>({
     resolver: zodResolver(CreateCategorySchema),
@@ -50,6 +56,46 @@ const CreateCategoryDialog = ({ type }: Props) => {
       type,
     },
   });
+
+  const queryClient = useQueryClient();
+  const theme = useTheme();
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: CreateCategory,
+    onSuccess: async (data: Category) => {
+      form.reset({
+        name: "",
+        icon: "",
+        type,
+      });
+      toast.success(`Category ${data.name} created successfully 🎉`, {
+        id: "create-category",
+      });
+
+      successCallback(data);
+
+      await queryClient.invalidateQueries({
+        queryKey: ["categories"],
+      });
+
+      setOpen((prev) => !prev);
+    },
+    onError: () => {
+      toast.error("Something went wrong", {
+        id: "create-category",
+      });
+    },
+  });
+
+  const onSubmit = useCallback(
+    (values: CreateCategorySchemaType) => {
+      toast.loading("Creating category...", {
+        id: "create-category",
+      });
+      mutate(values);
+    },
+    [mutate]
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -81,7 +127,7 @@ const CreateCategoryDialog = ({ type }: Props) => {
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form className="space-y-8">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <FormField
               control={form.control}
               name="name"
@@ -89,10 +135,10 @@ const CreateCategoryDialog = ({ type }: Props) => {
                 <FormItem>
                   <FormLabel>Name</FormLabel>
                   <FormControl>
-                    <Input defaultValue={""} {...field} />
+                    <Input placeholder="Category" {...field} />
                   </FormControl>
                   <FormDescription>
-                    Transaction description (optional)
+                    This is how your category will appear in the app
                   </FormDescription>
                 </FormItem>
               )}
@@ -132,6 +178,7 @@ const CreateCategoryDialog = ({ type }: Props) => {
                       <PopoverContent className="w-full">
                         <Picker
                           data={data}
+                          theme={theme.resolvedTheme}
                           onEmojiSelect={(emoji: { native: string }) =>
                             field.onChange(emoji.native)
                           }
@@ -158,7 +205,10 @@ const CreateCategoryDialog = ({ type }: Props) => {
               Cancel
             </Button>
           </DialogClose>
-          <Button>Save</Button>
+          <Button onClick={form.handleSubmit(onSubmit)} disabled={isPending}>
+            {!isPending && "Create"}
+            {isPending && <Loader2 className="animate-spin" />}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
